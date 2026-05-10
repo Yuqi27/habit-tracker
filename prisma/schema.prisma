@@ -1,0 +1,47 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?   // 如果用 NextAuth 可不用，改用 OAuth
+  habits        Habit[]
+  checkins      Checkin[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Habit {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  color       String     @default("#3B82F6")
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checkins    Checkin[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([userId])
+}
+
+model Checkin {
+  id        String   @id @default(cuid())
+  habitId   String
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime // 打卡日期（只保留年月日）
+  createdAt DateTime @default(now())
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+}

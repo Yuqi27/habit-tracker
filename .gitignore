@@ -1,0 +1,28 @@
+# 依赖
+node_modules/
+
+# Next.js 构建产物
+.next/
+out/
+
+# 环境变量（含密钥，不要上传）
+.env
+.env.local
+.env.production
+
+# 数据库文件
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+prisma/*.db-journal
+
+# 工作记录（本地辅助，不提交）
+.workbuddy/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+npm-debug.log*
