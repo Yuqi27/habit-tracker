@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   BarChart,
@@ -27,7 +26,6 @@ interface Last7Day {
 
 export default function StatsPage() {
   const { data: session, status } = useSession({ required: true });
-  const router = useRouter();
   const [habits, setHabits] = useState<any[]>([]);
   const [selectedHabitId, setSelectedHabitId] = useState('');
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
@@ -37,10 +35,7 @@ export default function StatsPage() {
   const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/login');
-  }, [status, router]);
-
-  useEffect(() => {
+    if (status === 'loading') return;
     if (!session) return;
     fetch('/api/habits')
       .then((res) => res.json())

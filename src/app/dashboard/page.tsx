@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 
-type Checkin = { id: string; date: string; habitId: string };
+type Checkin = { id: string; date: string; habitId: string }; // date 是 "YYYY-MM-DD" 字符串
 type Habit = {
   id: string;
   name: string;
@@ -36,7 +36,9 @@ export default function Dashboard() {
   const [newHabitName, setNewHabitName] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const todayStr = new Date().toISOString().split('T')[0];
+  // 使用本地日期，避免 toISOString() 返回 UTC 日期导致的时区偏移问题
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   // 鼓励语
   const [encouragement, setEncouragement] = useState('');
@@ -150,45 +152,23 @@ export default function Dashboard() {
     }
   };
 
-  // 判断今天是否已打卡（兼容 Date 对象和 ISO 字符串）
+  // 判断今天是否已打卡（Checkin.date 是 "YYYY-MM-DD" 字符串）
   const isCheckedToday = (habit: Habit) => {
-    return habit.checkins.some(c => {
-      // 从 Date 对象或 ISO 字符串中提取 YYYY-MM-DD 部分
-      const raw = c.date;
-      let dateStr: string;
-      if (typeof raw === 'string') {
-        // ISO 字符串：用本地时区格式化
-        const d = new Date(raw);
-        dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      } else {
-        dateStr = `${raw.getFullYear()}-${String(raw.getMonth() + 1).padStart(2, '0')}-${String(raw.getDate()).padStart(2, '0')}`;
-      }
-      return dateStr === todayStr;
-    });
+    return habit.checkins.some(c => c.date === todayStr);
   };
 
-  // 计算连续打卡天数
+  // 计算连续打卡天数（所有日期都是 "YYYY-MM-DD" 字符串，直接用本地日期比较）
   const calculateStreak = (habit: Habit) => {
-    const dates = habit.checkins.map(c => {
-      const raw = c.date;
-      let dateStr: string;
-      if (typeof raw === 'string') {
-        const d = new Date(raw);
-        dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      } else {
-        dateStr = `${raw.getFullYear()}-${String(raw.getMonth() + 1).padStart(2, '0')}-${String(raw.getDate()).padStart(2, '0')}`;
-      }
-      return dateStr;
-    });
+    const dates = habit.checkins.map(c => c.date);
     dates.sort();
     let streak = 0;
-    const current = new Date();
-    current.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const checkDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     while (true) {
-      const dateStr = current.toISOString().split('T')[0];
+      const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
       if (dates.includes(dateStr)) {
         streak++;
-        current.setDate(current.getDate() - 1);
+        checkDate.setDate(checkDate.getDate() - 1);
       } else {
         break;
       }

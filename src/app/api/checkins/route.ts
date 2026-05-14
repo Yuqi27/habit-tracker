@@ -19,33 +19,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "日期格式错误" }, { status: 400 });
   }
 
-  // 直接用 SQLite 的 date() 函数存储本地日期，不走任何 JS Date 时区转换
-  const existing = await prisma.$queryRaw<{ id: string }[]>`
-    SELECT id FROM Checkin
-    WHERE habitId = ${habitId}
-      AND userId = ${session.user.id}
-      AND date(date / 1000, 'unixepoch', 'localtime') = ${date}
-  `;
-
-  if (existing.length > 0) {
-    return NextResponse.json({ error: "今日已打卡" }, { status: 400 });
+  try {
+    await prisma.checkin.create({
+      data: {
+        id: crypto.randomUUID(),
+        habitId,
+        userId: session.user.id,
+        date, // 直接存 YYYY-MM-DD 字符串，无时区问题
+      },
+    });
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    // P2002 = 唯一约束冲突（同一个 habit + 同一天已打卡）
+    if (err.code === "P2002") {
+      return NextResponse.json({ error: "今日已打卡" }, { status: 400 });
+    }
+    console.error("打卡失败:", err);
+    return NextResponse.json({ error: "打卡失败" }, { status: 500 });
   }
-
-  // 用 Unix 时间戳存入 UTC，date() 函数保证存的是本地日期
-  const localDate = new Date(`${date}T00:00:00`);
-  const unixMs = localDate.getTime();
-
-  await prisma.$executeRaw`
-    INSERT INTO Checkin (id, habitId, userId, date)
-    VALUES (
-      ${crypto.randomUUID()},
-      ${habitId},
-      ${session.user.id},
-      ${Math.floor(unixMs / 1000)}
-    )
-  `;
-
-  return NextResponse.json({ success: true });
 }
 
 // DELETE /api/checkins - 取消打卡
@@ -63,20 +54,22 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "日期格式错误" }, { status: 400 });
   }
 
-  const existing = await prisma.$queryRaw<{ id: string }[]>`
-    SELECT id FROM Checkin
-    WHERE habitId = ${habitId}
-      AND userId = ${session.user.id}
-      AND date(date / 1000, 'unixepoch', 'localtime') = ${date}
-  `;
+  // 查找当天的打卡记录
+  const checkin = await prisma.checkin.findFirst({
+    where: {
+      habitId,
+      userId: session.user.id,
+      date, // 直接匹配 YYYY-MM-DD 字符串
+    },
+  });
 
-  if (existing.length === 0) {
+  if (!checkin) {
     return NextResponse.json({ error: "今日未打卡" }, { status: 400 });
   }
 
-  await prisma.$executeRaw`
-    DELETE FROM Checkin WHERE id = ${existing[0].id}
-  `;
+  await prisma.checkin.delete({
+    where: { id: checkin.id },
+  });
 
   return NextResponse.json({ success: true });
 }

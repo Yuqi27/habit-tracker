@@ -1,9 +1,7 @@
-// src/app/api/stats/route.ts
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, subDays, isSameDay } from "date-fns";
 
 /**
  * GET /api/stats?habitId=xxx
@@ -27,7 +25,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "缺少 habitId 参数" }, { status: 400 });
   }
 
-  // 3. 查询该习惯的所有打卡记录（仅日期字段）
+  // 3. 查询该习惯的所有打卡记录（date 字段为 YYYY-MM-DD 字符串）
   const checkins = await prisma.checkin.findMany({
     where: {
       habitId: habitId,
@@ -37,57 +35,58 @@ export async function GET(req: Request) {
       date: true,
     },
     orderBy: {
-      date: "asc", // 按日期升序，方便后续统计
+      date: "asc", // 按日期升序
     },
   });
 
-  // 4. 提取打卡日期字符串数组（YYYY-MM-DD）
-  const dates = checkins.map((c) => format(c.date, "yyyy-MM-dd"));
+  // 4. 提取打卡日期字符串数组（已经是 YYYY-MM-DD）
+  const dates = checkins.map((c) => c.date);
 
-  // 5. 计算当前连续天数（从今天开始往前推，遇到未打卡的日期就停止）
+  // 5. 计算当前连续天数
   let streak = 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // 归一化到当天零点
-  let currentDate = new Date(today);
+  const now = new Date();
+  // 用本地日期生成 YYYY-MM-DD
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
+  let currentDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   while (true) {
-    const dateStr = format(currentDate, "yyyy-MM-dd");
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
     if (dates.includes(dateStr)) {
       streak++;
-      currentDate.setDate(currentDate.getDate() - 1); // 往前一天
+      currentDate.setDate(currentDate.getDate() - 1);
     } else {
       break;
     }
   }
 
-  // 6. 按月统计打卡次数（用于图表展示）
-  // 方法：遍历所有打卡记录，按年月分组计数
+  // 6. 按月统计打卡次数
   const monthlyMap = new Map<string, number>();
-  for (const checkin of checkins) {
-    const yearMonth = format(checkin.date, "yyyy-MM");
+  for (const dateStr of dates) {
+    const yearMonth = dateStr.substring(0, 7); // "2026-05" 格式
     monthlyMap.set(yearMonth, (monthlyMap.get(yearMonth) || 0) + 1);
   }
 
-  // 转换为图表组件需要的数组格式 [{ month: "2025-04", count: 8 }, ...]
   const monthlyData = Array.from(monthlyMap.entries())
     .map(([month, count]) => ({ month, count }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  // 可选：获取最近7天的打卡情况（用于周趋势）
-  const last7Days = eachDayOfInterval({
-    start: subDays(today, 6),
-    end: today,
-  }).map((date) => ({
-    date: format(date, "yyyy-MM-dd"),
-    checked: dates.includes(format(date, "yyyy-MM-dd")),
-  }));
+  // 7. 获取最近7天的打卡情况
+  const last7Days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    last7Days.push({
+      date: dateStr,
+      checked: dates.includes(dateStr),
+    });
+  }
 
-  // 7. 返回统计结果
+  // 8. 返回统计结果
   return NextResponse.json({
-    streak,           // 连续打卡天数
-    total: dates.length, // 总打卡次数
-    dates,            // 所有打卡日期数组
-    monthlyData,      // 按月统计数据
-    last7Days,        // 最近7天详情
+    streak,
+    total: dates.length,
+    dates,
+    monthlyData,
+    last7Days,
   });
 }

@@ -39,7 +39,7 @@ model Checkin {
   habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date      DateTime // 打卡日期（只保留年月日）
+  date      String   // YYYY-MM-DD 格式，直接用字符串，彻底避开时区问题
   createdAt DateTime @default(now())
 
   @@unique([habitId, date])
