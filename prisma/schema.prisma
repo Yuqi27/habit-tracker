@@ -15,8 +15,22 @@ model User {
   password      String?   // 如果用 NextAuth 可不用，改用 OAuth
   habits        Habit[]
   checkins      Checkin[]
+  groups        Group[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#6B7280")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habits    Habit[]
+  createdAt DateTime @default(now())
+
+  @@unique([name, userId])
+  @@index([userId])
 }
 
 model Habit {
@@ -26,11 +40,14 @@ model Habit {
   color       String     @default("#3B82F6")
   userId      String
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId     String?
+  group       Group?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
   checkins    Checkin[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
   @@index([userId])
+  @@index([groupId])
 }
 
 model Checkin {
@@ -40,6 +57,7 @@ model Checkin {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   date      String   // YYYY-MM-DD 格式，直接用字符串，彻底避开时区问题
+  note      String?  // 新增：打卡备注（最多100字符）
   createdAt DateTime @default(now())
 
   @@unique([habitId, date])

@@ -1,0 +1,64 @@
+classDiagram
+    class User {
+        +String id
+        +String email
+        +String name?
+        +String? password
+        +DateTime createdAt
+        +DateTime updatedAt
+    }
+
+    class Group {
+        +String id
+        +String name
+        +String color
+        +String userId
+        +DateTime createdAt
+        +Habit[] habits
+    }
+
+    class Habit {
+        +String id
+        +String name
+        +String description?
+        +String color
+        +String userId
+        +String? groupId
+        +DateTime createdAt
+        +DateTime updatedAt
+        +Checkin[] checkins
+        +Group? group
+    }
+
+    class Checkin {
+        +String id
+        +String habitId
+        +String userId
+        +String date
+        +String? note
+        +DateTime createdAt
+    }
+
+    class StatsResponse {
+        +int streak
+        +int total
+        +string[] dates
+        +MonthlyData[] monthlyData
+        +Last7Day[] last7Days
+        +int bestStreak
+        +float completionRate
+        +int totalDaysSinceStart
+        +HeatmapData[] heatmapData
+    }
+
+    class HeatmapData {
+        +string date
+        +bool checked
+    }
+
+    User "1" --> "*" Habit
+    User "1" --> "*" Group
+    User "1" --> "*" Checkin
+    Group "1" --> "*" Habit : groupId
+    Habit "1" --> "*" Checkin
+    StatsResponse --> HeatmapData

@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
-  const { habitId, date } = await req.json();
+  const { habitId, date, note } = await req.json();
   if (!habitId || !date) {
     return NextResponse.json({ error: "缺少参数" }, { status: 400 });
   }
@@ -19,6 +19,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "日期格式错误" }, { status: 400 });
   }
 
+  // 备注长度校验（最多100字符）
+  if (note !== undefined && note !== null) {
+    if (typeof note !== "string") {
+      return NextResponse.json({ error: "备注格式错误" }, { status: 400 });
+    }
+    if (note.length > 100) {
+      return NextResponse.json({ error: "备注不能超过100个字符" }, { status: 400 });
+    }
+  }
+
   try {
     await prisma.checkin.create({
       data: {
@@ -26,6 +36,7 @@ export async function POST(req: Request) {
         habitId,
         userId: session.user.id,
         date, // 直接存 YYYY-MM-DD 字符串，无时区问题
+        note: note || null,
       },
     });
     return NextResponse.json({ success: true });

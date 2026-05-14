@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant User
+    participant StatsPage as stats/page.tsx
+    participant API as /api/stats
+    participant DB as Prisma (SQLite)
+
+    User->>StatsPage: 选择习惯
+    StatsPage->>API: GET /api/stats?habitId=xxx
+    API->>DB: prisma.checkin.findMany({ where: { habitId, userId } })
+    DB-->>API: Checkin[] (date 数组)
+    API->>API: 计算 bestStreak (遍历dates找最长连续)
+    API->>API: 计算 completionRate (checkedDays / totalDaysSinceStart)
+    API->>API: 生成 heatmapData (最近365天逐天标记是否打卡)
+    API-->>StatsPage: { bestStreak, completionRate, heatmapData, ... }
+    StatsPage->>StatsPage: 渲染 HeatmapCalendar 组件
+    StatsPage->>StatsPage: 渲染完成率卡片 & best streak 卡片

@@ -38,7 +38,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const { name, description, color } = await req.json();
+  const { name, description, color, groupId } = await req.json();
 
   // 验证习惯属于当前用户
   const habit = await prisma.habit.findFirst({
@@ -48,13 +48,25 @@ export async function PATCH(
     return NextResponse.json({ error: "习惯不存在" }, { status: 404 });
   }
 
+  // 如果传了 groupId，验证分组存在且属于当前用户
+  if (groupId) {
+    const group = await prisma.group.findFirst({
+      where: { id: groupId, userId: session.user.id },
+    });
+    if (!group) {
+      return NextResponse.json({ error: "分组不存在" }, { status: 400 });
+    }
+  }
+
   const updated = await prisma.habit.update({
     where: { id },
     data: {
       ...(name !== undefined && { name }),
       ...(description !== undefined && { description }),
       ...(color !== undefined && { color }),
+      ...(groupId !== undefined && { groupId }),
     },
+    include: { checkins: true, group: true },
   });
   return NextResponse.json(updated);
 }
